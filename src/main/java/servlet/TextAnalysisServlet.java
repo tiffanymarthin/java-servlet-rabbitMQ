@@ -2,6 +2,7 @@ package servlet;
 
 import com.google.gson.JsonObject;
 import java.io.PrintWriter;
+import java.util.stream.Collectors;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import javax.servlet.annotation.*;
@@ -53,7 +54,9 @@ public class TextAnalysisServlet extends HttpServlet {
 //      JsonObject jsonResp = new JsonObject();
 //      jsonResp.addProperty("message", 0);
 //      out.write(String.valueOf(jsonResp));
-      out.write("message: 0");
+      String requestBody = request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
+      JsonObject jsonMap = LineProcessing.processLine(requestBody);
+      out.write("unique words: " + jsonMap.size());
       out.flush();
     }
   }
