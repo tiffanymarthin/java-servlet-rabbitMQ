@@ -8,7 +8,7 @@ import java.util.Map;
 public class LineProcessing {
 
   public static JsonObject processLine(String line) {
-    String[] arr = line.split(" ");
+    String[] arr = line.trim().split("\\s+");
     Map<String, Integer> wordCount = new HashMap<>();
     for (String word : arr) {
       wordCount.put(word, wordCount.getOrDefault(word, 0) + 1);
@@ -16,12 +16,12 @@ public class LineProcessing {
 
     Gson gson = new Gson();
     JsonObject jsonMap = gson.toJsonTree(wordCount).getAsJsonObject();
-    System.out.println(jsonMap.size());
+//    System.out.println(jsonMap.size());
     return jsonMap;
   }
-
+//
 //  public static void main(String[] args) {
-//    String line = "Testing % this testing testing word % ok loh deh";
+//    String line = "   Thread Pools 47";
 //    JsonObject result = processLine(line);
 //    System.out.println(result);
 //    System.out.println(result.size());
