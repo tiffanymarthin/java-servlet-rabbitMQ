@@ -19,11 +19,13 @@ public class LineProcessing {
 //    System.out.println(jsonMap.size());
     return jsonMap;
   }
-//
+
 //  public static void main(String[] args) {
 //    String line = "   Thread Pools 47";
 //    JsonObject result = processLine(line);
+//    String after = result.getAsString();
 //    System.out.println(result);
 //    System.out.println(result.size());
+//    System.out.println(after);
 //  }
 }

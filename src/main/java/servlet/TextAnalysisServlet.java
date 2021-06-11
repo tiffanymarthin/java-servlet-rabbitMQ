@@ -26,11 +26,18 @@ public class TextAnalysisServlet extends HttpServlet {
   public void init() throws ServletException {
     super.init();
     ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost("localhost");
+//    factory.setHost("localhost");
+    // TODO REMOVE THIS OR USE VENV
+    factory.setUsername("test");
+    factory.setPassword("test");
+    factory.setHost("172.31.23.67");
+//    factory.setVirtualHost("a2mq");
+//    factory.setHost("rabbit@ip-172-31-23-67.us-west-2.compute.internal");
     try {
       connection = factory.newConnection();
+//      logger.info("Connection is made");
     } catch (IOException | TimeoutException e) {
-      logger.info(e.getMessage());
+      logger.info("EXCEPTION THROWN");
     }
   }
 
@@ -96,6 +103,7 @@ public class TextAnalysisServlet extends HttpServlet {
       channel.queueDeclare(QUEUE_NAME, true, false, false, null);
       channel.basicPublish("", QUEUE_NAME, null, message.toString().getBytes(StandardCharsets.UTF_8));
       channel.close();
+      logger.info("Connection is made");
       return true;
     } catch (IOException | TimeoutException e) {
       logger.info(e.getMessage());
