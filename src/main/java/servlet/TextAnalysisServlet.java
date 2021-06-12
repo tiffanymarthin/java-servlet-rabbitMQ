@@ -4,8 +4,10 @@ import com.google.gson.JsonObject;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.servlet.*;
@@ -22,17 +24,26 @@ public class TextAnalysisServlet extends HttpServlet {
   private final static String QUEUE_NAME = "wordCountQueue";
   private Connection connection;
 
+
   @Override
   public void init() throws ServletException {
     super.init();
+    Properties prop = new Properties();
+    try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream("config.properties")) {
+      //load a properties file from class path, inside static method
+      prop.load(input);
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    }
+
     ConnectionFactory factory = new ConnectionFactory();
 //    factory.setHost("localhost");
     // TODO REMOVE THIS OR USE VENV
-    factory.setUsername("test");
-    factory.setPassword("test");
-    factory.setHost("172.31.23.67");
-//    factory.setVirtualHost("a2mq");
-//    factory.setHost("rabbit@ip-172-31-23-67.us-west-2.compute.internal");
+//    factory.setUsername("test");
+    factory.setUsername(prop.getProperty("rabbit.username"));
+    factory.setPassword(prop.getProperty("rabbit.password"));
+//    factory.setPassword("test");
+    factory.setHost(prop.getProperty("rabbit.ip"));
     try {
       connection = factory.newConnection();
 //      logger.info("Connection is made");
