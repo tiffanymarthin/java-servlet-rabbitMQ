@@ -2,59 +2,54 @@ package servlet;
 
 import com.google.gson.JsonObject;
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.Properties;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import javax.servlet.annotation.*;
 import java.io.IOException;
+import org.apache.commons.pool2.ObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * This class is the Java Servlet implementation for analyzing texts
+ */
 @WebServlet(name = "TextAnalysisServlet", urlPatterns = "/textbody/*")
 public class TextAnalysisServlet extends HttpServlet {
 
   private static final Logger logger = LogManager.getLogger(TextAnalysisServlet.class.getName());
   private final static String QUEUE_NAME = "wordCountQueue";
-  private Connection connection;
+  private ObjectPool<Channel> pool;
 
-
+  /**
+   * Initialize the RabbitMQ Channel pool during Servlet initialization
+   *
+   * @throws ServletException when Servlet can't be initialized
+   */
   @Override
   public void init() throws ServletException {
     super.init();
-    Properties prop = new Properties();
-    try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream("config.properties")) {
-      //load a properties file from class path, inside static method
-      prop.load(input);
-    } catch (IOException ex) {
-      ex.printStackTrace();
-    }
 
-    ConnectionFactory factory = new ConnectionFactory();
-//    factory.setHost("localhost");
-    // TODO REMOVE THIS OR USE VENV
-//    factory.setUsername("test");
-    factory.setUsername(prop.getProperty("rabbit.username"));
-    factory.setPassword(prop.getProperty("rabbit.password"));
-//    factory.setPassword("test");
-    factory.setHost(prop.getProperty("rabbit.ip"));
     try {
-      connection = factory.newConnection();
-//      logger.info("Connection is made");
-    } catch (IOException | TimeoutException e) {
-      logger.info("EXCEPTION THROWN");
+      pool = initializePool();
+    } catch (Exception e) {
+      logger.info("Pool initialization failed");
     }
   }
 
+  /**
+   * Method to handle GET requests from client side
+   *
+   * @param request  http request
+   * @param response http response
+   * @throws IOException when PrintWriter has IO error
+   */
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
-      throws ServletException, IOException {
+      throws IOException {
     response.setContentType("text/html");
     PrintWriter out = response.getWriter();
 
@@ -65,14 +60,20 @@ public class TextAnalysisServlet extends HttpServlet {
     out.flush();
   }
 
+  /**
+   * Method to handle a POST request It will validate the request and send messages to RabbitMQ
+   * server to be processed Set response code to 404 if URL is not valid or empty, otherwise 200
+   *
+   * @param request  http request
+   * @param response http response
+   * @throws IOException when PrintWriter has IO error
+   */
   @Override
   protected void doPost(HttpServletRequest request, HttpServletResponse response)
-      throws ServletException, IOException {
+      throws IOException {
     response.setContentType("application/json");
     response.setCharacterEncoding("UTF-8");
     String urlPath = request.getPathInfo();
-//    logger.info("[POST] URL path: " + urlPath);
-//    logger.info("[POST] URI path: " + request.getRequestURI());
 
     PrintWriter out = response.getWriter();
     // check if we have a URL!
@@ -88,37 +89,57 @@ public class TextAnalysisServlet extends HttpServlet {
       out.write("Parameters are not valid.");
     } else {
       response.setStatus(HttpServletResponse.SC_OK);
-//      JsonObject jsonResp = new JsonObject();
-//      jsonResp.addProperty("message", 0);
-//      out.write(String.valueOf(jsonResp));
-      String requestBody = request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
+      String requestBody = request.getReader().lines()
+          .collect(Collectors.joining(System.lineSeparator()));
       JsonObject jsonMap = LineProcessing.processLine(requestBody);
 
       if (sendMessageToQueue(jsonMap)) {
-        out.write("unique words: " + jsonMap.size());
+        out.write(jsonMap.size());
       } else {
-        out.write("message is not sent to queue");
+        logger.info("Failed to send message to RabbitMQ");
       }
       out.flush();
     }
   }
 
+  /**
+   * A helper method to validate URL
+   *
+   * @param urlPath specified URL path
+   * @return true if URL path is valid, false otherwise
+   */
   private boolean isUrlValid(String[] urlPath) {
     int n = urlPath.length;
     return n == 2;
   }
 
+  /**
+   * Method to send POST request message to RabbitMQ
+   *
+   * @param message in the format of JsonObject to be sent to RabbitMQ
+   * @return true if message was successfully sent, false otherwise
+   */
   private boolean sendMessageToQueue(JsonObject message) {
     try {
-      Channel channel = connection.createChannel();
+      Channel channel = pool.borrowObject();
       channel.queueDeclare(QUEUE_NAME, true, false, false, null);
-      channel.basicPublish("", QUEUE_NAME, null, message.toString().getBytes(StandardCharsets.UTF_8));
-      channel.close();
-      logger.info("Connection is made");
+      channel
+          .basicPublish("", QUEUE_NAME, null, message.toString().getBytes(StandardCharsets.UTF_8));
+      pool.returnObject(channel);
       return true;
-    } catch (IOException | TimeoutException e) {
-      logger.info(e.getMessage());
+    } catch (Exception e) {
+      logger.info("Failed to send message to RabbitMQ");
       return false;
     }
+  }
+
+  /**
+   * Method to initialize RabbitMQ Channel pool using ChannelFactory class
+   *
+   * @return Channel Object Pool
+   * @throws Exception when initialization fails
+   */
+  private ObjectPool<Channel> initializePool() throws Exception {
+    return new GenericObjectPool<>(new ChannelFactory());
   }
 }
