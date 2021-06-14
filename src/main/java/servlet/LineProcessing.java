@@ -5,8 +5,16 @@ import com.google.gson.JsonObject;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * This static class is responsible to process each text line
+ */
 public class LineProcessing {
 
+  /**
+   * Static method to convert a line of text to tuples of word counts
+   * @param line a line of text
+   * @return JsonObject of word count tuples
+   */
   public static JsonObject processLine(String line) {
     String[] arr = line.trim().split("\\s+");
     Map<String, Integer> wordCount = new HashMap<>();
@@ -15,9 +23,7 @@ public class LineProcessing {
     }
 
     Gson gson = new Gson();
-    JsonObject jsonMap = gson.toJsonTree(wordCount).getAsJsonObject();
-//    System.out.println(jsonMap.size());
-    return jsonMap;
+    return gson.toJsonTree(wordCount).getAsJsonObject();
   }
 
 //  public static void main(String[] args) {
